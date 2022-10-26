@@ -98,7 +98,7 @@ namespace Crawl_Data
 
         void Crawl(string url)
         {
-            List<MenuTreeItem> listProduct = new List<MenuTreeItem>();
+            List<ProductVariant> listProduct = new List<ProductVariant>();
             string htmlLearn = CrawlDataFromURL(url);
             var CourseList = Regex.Matches(htmlLearn, @"<div class=""p-component item"" data-id=(.*?)</span></span>", RegexOptions.Singleline);
             foreach (var course in CourseList)
@@ -107,13 +107,9 @@ namespace Crawl_Data
                 var a= Regex.Match(course.ToString(), @"(?=<h3 class=""p-name "">).*?(?=</h3>)").Value;
                 var removeHref= Regex.Match(a.ToString(), @"<a href=""/(.*?)"">").Value;
                 var test = a.Replace(removeHref,"");
-                string courseName = Regex.Match(a.Replace(removeHref, "").ToString(), @"<h3 class=""p-name "">(.*?)</a>").Value.Replace("<h3 class=\"p-name \">", "").Replace("</a>", "");
+                //string courseName = Regex.Match(a.Replace(removeHref, "").ToString(), @"<h3 class=""p-name "">(.*?)</a>").Value.Replace("<h3 class=\"p-name \">", "").Replace("</a>", "");
                 string linkCourse = Regex.Match(removeHref.ToString(), @"<a href=""(.*?)"">", RegexOptions.Singleline).Value.Replace("<a href=\"", "").Replace("\">","");
 
-                MenuTreeItem item = new MenuTreeItem();
-                item.Name = courseName;
-                item.URL = linkCourse;
-                
                // AddItemIntoTreeViewItem(TreeItems, item);
 
                 string htmlCourse = CrawlDataFromURL(linkCourse);
@@ -153,8 +149,7 @@ namespace Crawl_Data
                     if (!string.IsNullOrEmpty(image))
                         productVariant.ImageCollection.Add(image);
                 }
-                item.Items.Add(productVariant);
-                listProduct.Add(item);
+                listProduct.Add(productVariant);
             }
             
         }
