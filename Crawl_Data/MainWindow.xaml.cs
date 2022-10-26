@@ -18,6 +18,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using Microsoft.VisualBasic.FileIO;
 
 namespace Crawl_Data
 {
@@ -28,8 +29,8 @@ namespace Crawl_Data
     {
         #region properties
         ObservableCollection<MenuTreeItem> TreeItems;
-        string HomePage = "https://www.howkteam.com/";
-
+        string HomePage = "https://hacom.vn";
+        ObservableCollection<MenuTreeItem> TreeItemsProduct;
         HttpClient httpClient;
         HttpClientHandler handler;
         CookieContainer cookie = new CookieContainer();
@@ -43,6 +44,7 @@ namespace Crawl_Data
             IniHttpClient();
 
             TreeItems = new ObservableCollection<MenuTreeItem>();
+            TreeItemsProduct = new ObservableCollection<MenuTreeItem>();
             treeMain.ItemsSource = TreeItems;
         }
 
@@ -96,33 +98,65 @@ namespace Crawl_Data
 
         void Crawl(string url)
         {
+            List<MenuTreeItem> listProduct = new List<MenuTreeItem>();
             string htmlLearn = CrawlDataFromURL(url);
-            var CourseList = Regex.Matches(htmlLearn, @"<div class=""info-course(.*?)</div>", RegexOptions.Singleline);
+            var CourseList = Regex.Matches(htmlLearn, @"<div class=""p-component item"" data-id=(.*?)</span></span>", RegexOptions.Singleline);
             foreach (var course in CourseList)
             {
-                string courseName = Regex.Match(course.ToString(), @"(?=<h5>).*?(?=</h5>)").Value.Replace("<h5>", "");
-                string linkCourse = Regex.Match(course.ToString(), @"'(.*?)'", RegexOptions.Singleline).Value.Replace("'", "");
+                //List<MenuTreeItem> listProduct = new List<MenuTreeItem>();
+                var a= Regex.Match(course.ToString(), @"(?=<h3 class=""p-name "">).*?(?=</h3>)").Value;
+                var removeHref= Regex.Match(a.ToString(), @"<a href=""/(.*?)"">").Value;
+                var test = a.Replace(removeHref,"");
+                string courseName = Regex.Match(a.Replace(removeHref, "").ToString(), @"<h3 class=""p-name "">(.*?)</a>").Value.Replace("<h3 class=\"p-name \">", "").Replace("</a>", "");
+                string linkCourse = Regex.Match(removeHref.ToString(), @"<a href=""(.*?)"">", RegexOptions.Singleline).Value.Replace("<a href=\"", "").Replace("\">","");
 
                 MenuTreeItem item = new MenuTreeItem();
                 item.Name = courseName;
                 item.URL = linkCourse;
-
-                AddItemIntoTreeViewItem(TreeItems, item);
+                
+               // AddItemIntoTreeViewItem(TreeItems, item);
 
                 string htmlCourse = CrawlDataFromURL(linkCourse);
-                string sideBar = Regex.Match(htmlCourse, @"<div class=""sidebardetail"">(.*?)</ul>", RegexOptions.Singleline).Value;
-                var listLecture = Regex.Matches(sideBar, @"<li(.*?)</li>", RegexOptions.Singleline);
-                foreach (var lecture in listLecture)
-                {
-                    string lectureName = Regex.Match(lecture.ToString(), @"<li title=""(.*?)"">", RegexOptions.Singleline).Value.Replace("\">", "").Replace("<li title=\"", "");
-                    string linkLecture = Regex.Match(lecture.ToString(), @"<a href=""(.*?)"">", RegexOptions.Singleline).Value.Replace("<a href=\"", "").Replace("\">", "");
+                string sideBar = Regex.Match(htmlCourse, @"<div class=""container-2019 "">(.*?)<div class=""clearfix space2"">", RegexOptions.Singleline).Value;//.Replace(" ","");
+                string name = Regex.Match(sideBar, @"<h1(.*?)</h1>", RegexOptions.Singleline).Value.Replace("<h1>","").Replace("</h1>","");
+                var testsss= Regex.Match(sideBar, @"<span class=""sku"">(.*?)</span>", RegexOptions.Singleline).Value;
+                string skuId = Regex.Match(sideBar, @"<span class=""sku"">(.*?)</span>",RegexOptions.Singleline).Value.Replace("<span class=\"sku\">", "").Replace("</span>", "");
+                string price = Regex.Match(sideBar, @"<span class=""gia-km-cu"">(.*?)</span>", RegexOptions.Singleline).Value.Replace("<span class=\"gia-km-cu\">", "").Replace("₫</span>", "");
+                
+                ProductVariant productVariant = new ProductVariant();
+                productVariant.Name = name;
+                productVariant.SkuId= skuId;
+                productVariant.Price = Convert.ToInt64(price.Replace(".",""));
 
-                    MenuTreeItem Subitem = new MenuTreeItem();
-                    Subitem.Name = lectureName;
-                    Subitem.URL = linkLecture;
-                    AddItemIntoTreeViewItem(item.Items, Subitem);
+
+                var scopedInfomation= Regex.Match(sideBar, @"<div class=""content_scroll_tab_2019""(.*?)</table>", RegexOptions.Singleline).Value;
+                var listOPtionValueProduct = Regex.Matches(scopedInfomation, @"<tr>(.*?)</tr>", RegexOptions.Singleline);
+                foreach (var lecture in listOPtionValueProduct)
+                {
+                    string option = Regex.Match(lecture.ToString(), @"<td width=""157"">(.*?)</td>", RegexOptions.Singleline).Value.Replace("</td>", "").Replace("<td width=\"157\">", "");
+                    string value = Regex.Match(lecture.ToString(), @"<td width=""371"">(.*?)</td>", RegexOptions.Singleline).Value.Replace("<td width=\"371\">", "").Replace("</td>", "").Replace("&nbsp;","").Replace("<br>","; ");
+                    if (!string.IsNullOrEmpty(option) && !string.IsNullOrEmpty(value))
+                    {
+                        Option_Value Subitem = new Option_Value();
+                        Subitem.Option = option;
+                        Subitem.Value = value;
+                        productVariant.OptionValueColection.Add(Subitem);
+                    }
                 }
+
+
+                var scopedImage = Regex.Match(sideBar, @"<ul id=""img_thumb""(.*?)</ul>", RegexOptions.Singleline).Value;
+                var listImage = Regex.Matches(scopedImage, @"<li class='owl-thumb-item '(.*?)</li>", RegexOptions.Singleline);
+                foreach (var lecture in listImage)
+                {
+                    string image = Regex.Match(lecture.ToString(), @"data-href=""(.*?)""", RegexOptions.Singleline).Value.Replace("data-href=\"", "").Replace("\"", "");
+                    if (!string.IsNullOrEmpty(image))
+                        productVariant.ImageCollection.Add(image);
+                }
+                item.Items.Add(productVariant);
+                listProduct.Add(item);
             }
+            
         }
         public static void SetSilent(WebBrowser browser, bool silent)
         {
@@ -157,7 +191,7 @@ namespace Crawl_Data
             //treeMain.Dispatcher.Invoke(new Action(()=> {
             //    Crawl("Learn");
             //}));
-            Task t = new Task(() => { Crawl("Learn"); });
+            Task t = new Task(() => { Crawl("/laptop-acer"); });
             t.Start();
         }
 

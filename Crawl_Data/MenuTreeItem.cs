@@ -6,9 +6,9 @@ public class MenuTreeItem
 {
     public string Name { get; set; }
     public string URL { get; set; }
-    public ObservableCollection<MenuTreeItem> Items { get; set; }
+    public ObservableCollection<ProductVariant> Items { get; set; }
     public MenuTreeItem()
     {
-        this.Items = new ObservableCollection<MenuTreeItem>();
+        this.Items = new ObservableCollection<ProductVariant>();
     }
 }
